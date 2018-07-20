@@ -13,17 +13,7 @@ import android.widget.Toast;
 
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.select.Elements;
 
-import java.io.IOException;
-
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 import z.hobin.weibofs.data.Caches;
 import z.hobin.weibofs.log.L;
 
@@ -57,7 +47,7 @@ public class LoginActivity extends Activity {
             final Caches caches = Caches.get();
             if (!TextUtils.isEmpty(cookie)) {
                 if (caches != null) {
-                    caches.put("Cookie", cookie, Caches.TIME_HOUR);
+                    caches.put("Cookie", cookie, Caches.TIME_DAY);
                 }
             }
             L.d("Cookie@" + url, cookie);
@@ -68,8 +58,8 @@ public class LoginActivity extends Activity {
                         try {
                             if (caches != null && !TextUtils.isEmpty(value)) {
                                 JSONObject json = new JSONObject(value);
-                                caches.put("st", json.getString("st"), Caches.TIME_HOUR);
-                                caches.put("uid", json.getString("uid"), Caches.TIME_HOUR);
+                                caches.put("st", json.getString("st"), Caches.TIME_DAY);
+                                caches.put("uid", json.getString("uid"), Caches.TIME_DAY);
                                 Toast.makeText(LoginActivity.this, "请稍候", Toast.LENGTH_SHORT).show();
                                 web.pauseTimers();
                                 web.loadUrl("https://m.weibo.cn/message/");
@@ -120,8 +110,8 @@ public class LoginActivity extends Activity {
                         try {
                             if (caches != null && !TextUtils.isEmpty(value)) {
                                 JSONObject json = new JSONObject(value);
-                                caches.put("st_chat", json.getString("st"), Caches.TIME_HOUR);
-                                caches.put("uid", json.getString("uid"), Caches.TIME_HOUR);
+                                caches.put("st_chat", json.getString("st"), Caches.TIME_DAY);
+                                caches.put("uid", json.getString("uid"), Caches.TIME_DAY);
                                 Toast.makeText(LoginActivity.this, "注册成功,ID " + json.getString("uid"), Toast.LENGTH_SHORT).show();
                             }
                         } catch (JSONException e) {

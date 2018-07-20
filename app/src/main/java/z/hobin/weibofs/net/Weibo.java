@@ -1,8 +1,13 @@
 package z.hobin.weibofs.net;
 
+import android.util.Base64;
+
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -31,15 +36,17 @@ public class Weibo {
     public JSONObject follow(String uid) {
         Request.Builder builder = getDefaultHeader();
         builder.url("https://m.weibo.cn/api/friendships/create");
+        String referer = String.format(Locale.CHINA, "https://m.weibo.cn/u/%s?uid=%s&luicode=10000011&lfid=%s&featurecode=1", uid, uid, getSelfFansContainerId());
+        builder.addHeader("Referer", referer);
         String data = String.format(Locale.CHINA, "uid=%s&st=%s", uid, getSt());
         Request request = builder.post(getStringRequestBody(data)).build();
         try {
             Response response = client.newCall(request).execute();
             String json = response.body().string();
-            L.d(json);
+            L.d("Follow", json);
             return new JSONObject(json);
         } catch (Exception e) {
-            L.e(e);
+            L.e("Follow", e);
         }
         return null;
     }
@@ -50,18 +57,45 @@ public class Weibo {
      * @param uid 用户id
      * @return 用户信息
      */
-    public JSONObject unfollow(String uid) {
+    public JSONObject unFollow(String uid) {
         Request.Builder builder = getDefaultHeader();
         builder.url("https://m.weibo.cn/api/friendships/destory");
+        String referer = String.format(Locale.CHINA, "https://m.weibo.cn/u/%s?uid=%s&luicode=10000011&lfid=%s&featurecode=1", uid, uid, getSelfFollowedContainerId());
+        builder.addHeader("Referer", referer);
         String data = String.format(Locale.CHINA, "uid=%s&st=%s", uid, getSt());
         Request request = builder.post(getStringRequestBody(data)).build();
         try {
             Response response = client.newCall(request).execute();
-            String json = response.body().string();
-            L.d(json);
+            JSONObject json = new JSONObject(response.body().string());
+            if(json.getInt("ok") == 0){
+                if(json.getString("error_type").equalsIgnoreCase("captcha")){
+                    //验证码
+                }
+            }
+            L.d("UnFollow", json);
             return new JSONObject(json);
         } catch (Exception e) {
-            L.e(e);
+            L.e("UnFollow", e);
+        }
+        return null;
+    }
+
+    /**
+     * 验证码图片 base64 转码
+     *
+     * @return 验证码
+     */
+    public String getCaptcha() {
+        Request.Builder builder = getDefaultHeader();
+        builder.url("https://m.weibo.cn/api/captcha/show?t=" + System.currentTimeMillis());
+        builder.addHeader("Referer", "https://m.weibo.cn/sw.js");
+        Request request = builder.get().build();
+        try {
+            Response response = client.newCall(request).execute();
+            byte[] data = response.body().bytes();
+            return new String(Base64.encode(data, Base64.DEFAULT));
+        } catch (Exception e) {
+            L.e("UnFollow", e);
         }
         return null;
     }
@@ -81,10 +115,10 @@ public class Weibo {
         try {
             Response response = client.newCall(request).execute();
             String json = response.body().string();
-            L.d(json);
+            L.d("Like", json);
             return new JSONObject(json);
         } catch (Exception e) {
-            L.e(e);
+            L.e("Like", e);
         }
         return null;
     }
@@ -104,10 +138,10 @@ public class Weibo {
         try {
             Response response = client.newCall(request).execute();
             String json = response.body().string();
-            L.d(json);
+            L.d("UnLike", json);
             return new JSONObject(json);
         } catch (Exception e) {
-            L.e(e);
+            L.e("UnLike", e);
         }
         return null;
     }
@@ -128,10 +162,10 @@ public class Weibo {
         try {
             Response response = client.newCall(request).execute();
             String json = response.body().string();
-            L.d(json);
+            L.d("Comment", json);
             return new JSONObject(json);
         } catch (Exception e) {
-            L.e(e);
+            L.e("Comment", e);
         }
         return null;
     }
@@ -153,12 +187,161 @@ public class Weibo {
         try {
             Response response = client.newCall(request).execute();
             String json = response.body().string();
-            L.d(json);
+            L.d("Msg", json);
             return new JSONObject(json);
         } catch (Exception e) {
-            L.e(e);
+            L.e("Msg", e);
         }
         return null;
+    }
+
+    /**
+     * 获取用户信息
+     *
+     * @param uid 用户id
+     * @return 用户信息
+     */
+    public JSONObject getUserInfo(String uid) {
+        Request.Builder builder = getDefaultHeader();
+        builder.url("https://m.weibo.cn/api/container/getIndex?type=uid&value=" + uid);
+        builder.addHeader("Referer", "https://m.weibo.cn/profile/" + uid);
+        builder.addHeader("MWeibo-Pwa", "1");
+        Request request = builder.get().build();
+        try {
+            Response response = client.newCall(request).execute();
+            String json = response.body().string();
+            L.d("UserInfo", json);
+            return new JSONObject(json);
+        } catch (Exception e) {
+            L.e("UserInfo", e);
+        }
+        return null;
+    }
+
+    /**
+     * 获取关注用户containerid
+     *
+     * @return 231093_-_selffollowed
+     */
+    public String getSelfFollowedContainerId() {
+        JSONObject json = getUserInfo(getLocalUid());
+        try {
+            String scheme = json.getJSONObject("data").getString("follow_scheme");
+            URLParser urlParser = URLParser.fromURL(scheme);
+            urlParser.compile();
+            String containerId = urlParser.getParameter("containerid");
+            return containerId.split("_")[0] + "_-_selffollowed";
+        } catch (JSONException e) {
+            e.printStackTrace();
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+
+    /**
+     * 获取粉丝containerid
+     *
+     * @return 231093_-_selffollowed
+     */
+    public String getSelfFansContainerId() {
+        JSONObject json = getUserInfo(getLocalUid());
+        try {
+            String scheme = json.getJSONObject("data").getString("fans_scheme");
+            URLParser urlParser = URLParser.fromURL(scheme);
+            urlParser.compile();
+            String containerId = urlParser.getParameter("containerid");
+            return containerId + "_-_selffans";
+        } catch (JSONException e) {
+            e.printStackTrace();
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * 获取所有关注用户
+     * "relationship": 3, 互关
+     */
+    public List<JSONObject> getFolloweds() {
+        String containerId = getSelfFollowedContainerId();
+        List<JSONObject> userInfo = new ArrayList<>();
+        for (int i = 1; i < 20; i++) {
+            Request.Builder builder = getDefaultHeader();
+            String url = String.format(Locale.CHINA, "https://m.weibo.cn/api/container/getIndex?containerid=%s&page=%d", containerId, i);
+            builder.url(url);
+            builder.addHeader("Referer", "https://m.weibo.cn/p/index?containerid=" + containerId);
+            builder.addHeader("MWeibo-Pwa", "1");
+            Request request = builder.get().build();
+            try {
+                Response response = client.newCall(request).execute();
+                JSONObject json = new JSONObject(response.body().string());
+                JSONArray cards = json.getJSONObject("data").getJSONArray("cards");
+                JSONArray cardGroup = null;
+                if (cards.length() == 1) {
+                    cardGroup = cards.getJSONObject(0).getJSONArray("card_group");
+                } else if (cards.length() == 2) {
+                    cardGroup = cards.getJSONObject(1).getJSONArray("card_group");
+                }
+                if (cardGroup != null) {
+                    for (int j = 0; j < cardGroup.length(); j++) {
+                        userInfo.add(cardGroup.getJSONObject(j));
+                    }
+                } else {
+                    break;
+                }
+            } catch (Exception e) {
+                L.e("UserInfo", e);
+                break;
+            }
+        }
+        L.d("Followed", userInfo.size() + "");
+        return userInfo;
+    }
+
+    /**
+     * 获取所有粉丝
+     * "relationship": 3, 互关
+     * 3 互关
+     * 2 我关注了对方,没有关注我
+     * 1 关注了我,没有关注对方
+     */
+    public List<JSONObject> getFans() {
+        String containerId = getSelfFansContainerId();
+        List<JSONObject> userInfo = new ArrayList<>();
+        for (int i = 1; i < 20; i++) {
+            Request.Builder builder = getDefaultHeader();
+            String url = String.format(Locale.CHINA, "https://m.weibo.cn/api/container/getIndex?containerid=%s&page=%d", containerId, i);
+            builder.url(url);
+            builder.addHeader("Referer", "https://m.weibo.cn/p/index?containerid=" + containerId);
+            builder.addHeader("MWeibo-Pwa", "1");
+            Request request = builder.get().build();
+            try {
+                Response response = client.newCall(request).execute();
+                JSONObject json = new JSONObject(response.body().string());
+                JSONArray cards = json.getJSONObject("data").getJSONArray("cards");
+                JSONArray cardGroup = null;
+                if (cards.length() == 1) {
+                    cardGroup = cards.getJSONObject(0).getJSONArray("card_group");
+                } else if (cards.length() == 3) {
+                    cardGroup = cards.getJSONObject(2).getJSONArray("card_group");
+                }
+                if (cardGroup != null) {
+                    for (int j = 0; j < cardGroup.length(); j++) {
+                        userInfo.add(cardGroup.getJSONObject(j));
+                    }
+                } else {
+                    break;
+                }
+            } catch (Exception e) {
+                L.e("UserInfo", e);
+                break;
+            }
+        }
+        L.d("Followed", userInfo.size() + "");
+        return userInfo;
     }
 
     /**
@@ -183,7 +366,9 @@ public class Weibo {
                     JSONObject card = statuses.getJSONObject(i);
                     String id = card.getString("id");
                     like(uid, id);
-                    comment(id, msgs.get(i));
+                    if (msgs != null) {
+                        comment(id, msgs.get(i));
+                    }
                     sleep(1000 * 3);
                 }
             }
@@ -215,10 +400,10 @@ public class Weibo {
         try {
             Response response = client.newCall(request).execute();
             String userId = response.request().url().pathSegments().get(1);
-            L.d(userId);
+            L.d("GetUserIdByName", userId);
             return userId;
         } catch (Exception e) {
-            L.e(e);
+            L.e("GetUserIdByName", e);
         }
         return null;
     }

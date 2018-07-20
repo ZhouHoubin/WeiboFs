@@ -24,6 +24,10 @@ public class L {
         Log.e("Weibo", e.getMessage());
     }
 
+    public static void e(String tag, Exception e) {
+        Log.e(tag, e.getMessage());
+    }
+
     public static void e(String tag, String msg) {
         Log.e("Weibo", tag + ":" + msg);
     }

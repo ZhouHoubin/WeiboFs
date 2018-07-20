@@ -4,6 +4,8 @@ import android.app.WallpaperManager;
 import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
@@ -15,20 +17,39 @@ import android.widget.GridView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
 import z.hobin.weibofs.data.Caches;
 import z.hobin.weibofs.log.L;
 import z.hobin.weibofs.net.Weibo;
+import z.hobin.weibofs.util.Utils;
 
 public class MainActivity extends AppCompatActivity {
     private String cookie;
     private int widthPixels;
     private Drawable d;
     private List<String> userNames = new ArrayList<>();
+    private List<String> comments = new ArrayList<>();
+    private Handler handler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            switch (msg.what) {
+                case 0:
+                    Toast.makeText(getApplicationContext(), msg.obj.toString(), Toast.LENGTH_LONG).show();
+                    break;
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,11 +63,12 @@ public class MainActivity extends AppCompatActivity {
 
         GridView grid = findViewById(R.id.grid);
         List<String> list = new ArrayList<>();
-        list.add("关注");
-        list.add("取消关注");
+        list.add("删除单项");
+        list.add("关注粉丝");
         list.add("消息");
         list.add("批量关注并私信");
         list.add("批量关注点赞评论");
+        list.add("重新登录");
         grid.setAdapter(new MainGridAdapter(list));
         grid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -57,11 +79,59 @@ public class MainActivity extends AppCompatActivity {
                         super.run();
                         Weibo weibo = new Weibo();
                         switch (position) {
-                            case 0://关注
-                                weibo.follow("2099181812");
+                            case 0://删除单项
+                                List<JSONObject> followeds = weibo.getFolloweds();
+                                int c = 0;
+                                for (JSONObject followed : followeds) {
+                                    try {
+                                        String name = followed.getJSONObject("user").getString("screen_name");
+                                        String uid = followed.getJSONObject("user").getString("id");
+                                        int ship = followed.getJSONArray("buttons").getJSONObject(0).getInt("relationship");
+                                        if (ship == 3) {
+                                            c++;
+                                            L.d("互关", name);
+                                        } else {
+                                            JSONObject unFollow = weibo.unFollow(uid);
+                                            if (unFollow.getInt("ok") != 1) {
+                                                Message message = new Message();
+                                                message.what = 0;
+                                                message.obj = "取消关注异常," + unFollow.getString("msg");
+                                                handler.sendMessage(message);
+                                                break;
+                                            }
+                                            Utils.sleep(1000 * 3);
+                                        }
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                                L.d("关注", followeds.size() + "");
                                 break;
-                            case 1://取消关注
-                                weibo.unfollow("2099181812");
+                            case 1://关注粉丝
+                                List<JSONObject> fans = weibo.getFans();
+                                for (JSONObject followed : fans) {
+                                    try {
+                                        String name = followed.getJSONObject("user").getString("screen_name");
+                                        String uid = followed.getJSONObject("user").getString("id");
+                                        int ship = followed.getJSONArray("buttons").getJSONObject(0).getInt("relationship");
+                                        if (ship == 3) {
+                                            L.d("互关", name);
+                                        } else if (ship == 1) {
+                                            JSONObject follow = weibo.follow(uid);
+                                            if (follow.getInt("ok") != 1) {
+                                                Message message = new Message();
+                                                message.what = 0;
+                                                message.obj = "关注异常," + follow.getString("msg");
+                                                handler.sendMessage(message);
+                                                break;
+                                            }
+                                            Utils.sleep(1000 * 3);
+                                        }
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                                L.d("粉丝", fans.size() + "");
                                 break;
                             case 2://消息私信
                                 weibo.sendMsg("2099181812", System.currentTimeMillis() + "");
@@ -72,8 +142,11 @@ public class MainActivity extends AppCompatActivity {
                                     if (!TextUtils.isEmpty(userId)) {
                                         try {
                                             JSONObject follow = weibo.follow(userId);
+                                            Utils.sleep(1000 * 2);
                                             weibo.sendMsg(userId, userName + " 已经关注你了哦    ~~~~~来自贴吧");
+                                            Utils.sleep(1000 * 2);
                                             weibo.sendMsg(userId, userName + " 互粉互关Q group  786122281");
+                                            Utils.sleep(1000 * 2);
                                             L.d("关注+私信", userName);
                                         } catch (Exception e) {
                                             e.printStackTrace();
@@ -93,21 +166,31 @@ public class MainActivity extends AppCompatActivity {
                                         try {
                                             JSONObject follow = weibo.follow(userId);
                                             List<String> msgs = new ArrayList<>();
-                                            msgs.add(userName + " 互粉互关Q 裙 ~~~ 786122281");
-                                            msgs.add(userName + " 已粉  ~~~~~来自贴吧");
-                                            msgs.add(userName + " 已赞");
-                                            weibo.commentLike(userId, msgs);
-                                            L.d("关注+私信", userName);
+
+//                                            Random random = new Random();
+//                                            String comment = comments.get(random.nextInt(comments.size() - 1));
+//                                            StringBuilder builder = new StringBuilder(comment);
+//                                            builder.insert(random.nextInt(comment.length() - 1), " 互粉qun 786122281 ");
+//                                            msgs.add(builder.toString());
+
+                                            msgs.add(" 已粉 " + userName);
+                                            msgs.add(" 已赞 " + userName);
+                                            //weibo.commentLike(userId, null);
+                                            L.d("关注+评论", userName);
                                         } catch (Exception e) {
                                             e.printStackTrace();
                                         }
                                     }
                                     try {
-                                        Thread.sleep(1000 * 60);
+                                        Thread.sleep(1000 * 10);
                                     } catch (InterruptedException e) {
                                         e.printStackTrace();
                                     }
                                 }
+                                break;
+                            case 5:
+                                Caches.get().clear();
+                                onResume();
                                 break;
                             default:
                                 break;
@@ -290,8 +373,127 @@ public class MainActivity extends AppCompatActivity {
         userNames.add("Cat猫猫w");
         userNames.add("诗糖谦心");
         userNames.add("粉扑扑兔叽");
+        userNames.clear();
+        add("北北要矜持啊");
+        add("心匠丶");
+        add("三好有点慢");
+        add("孤立人格");
+        add("演吻");
+        add("荔荔夏");
+        add("清水叽叽");
+        add("dongzi");
+        add("llouo");
+        add("大腿姐姐_");
+        add("橘子-pp");
+        add("持久");
+        add("单纯正直的四娃");
+        add("沈废三");
+        add("如果儿的小号");
+        add("阿姨洗铁路啊西");
+        add("睡覺起來去玩");
+        add("最宝贝的y");
+        add("蔡徐坤ol");
+        add("甜溺v");
+        add("暧胸");
+        add("吉時行樂");
+        add("林家小聪");
+        add("Estelle_Smith");
+        add("反射弧战士YoMuLa");
+        add("独渡山河");
+        add("宛若一只熊");
+        add("陳陳Zz_");
+        add("饶邦梁");
+        add("白龙居居");
+        add("emdog");
+        add("林更新女朋友耶");
+        add("而已eyi");
+        add("misheng");
+        add("岳吗");
+        add("抱你满怀");
+        add("姬淮-");
+        add("西嬧");
+        add("捕梦陳");
+        add("_TeFuirL");
+        add("偷走芝士");
+        add("癫癫啊酱");
+        userNames.clear();
+        //------------------------
+        add("像最后一样");
+        add("每天都李小迷");
+        add("MkamYu-");
+        add("ljyyii");
+        add("长眉不似山");
+        add("卜叽叽叽叽-");
+        add("别躲啊_");
+        add("邚味");
+        add("过场·");
+        add("WEIFUY_");
+        add("b霖-");
+        add("什一11");
+        add("一杯抹茶拿铁儿");
+        add("wuli心洁");
+        add("段美汝");
+        add("南巷十七");
+        add("风与鸟");
+        add("黎念NL");
+        add("陳凯蒂_");
+        add("amglz");
+        add("春事爱远仪");
+        add("麦迪辰夕的故事");
+        add("几个荼");
+        add("粉红少女Ra");
+        add("司杌");
+        add("谓贤_");
+        add("像最后一样");
+        add("大丑程晏");
+        add("只有三岁的章若涵");
+        add("陈阿秋阿");
+        add("捏脸小语");
+        add("几身风尘");
+        add("长眉不似山");
+        add("一只小猪向前跑");
+        add("忱温的猫");
+        add("野生香菜儿");
+        add("吉時行樂");
+        add("我喜欢的你喜欢我");
+        add("南亦北也");
+        add("宛若一只熊");
+        add("眉目款款-");
+        add("朴所罗门是我的");
+        add("癫癫啊酱");
+        add("嗯是阿姨");
+        add("别躲啊_");
+        add("今天练爱了吗");
+        add("Xarnud_yi");
+        add("废了个丢");
+        add("wuli心洁");
+        add("丧人三五三");
+        add("steady-波");
+        add("吴市的箫");
+        add("一个什么都发的涵雨");
+        add("周宇PG");
+        add("风与鸟");
+        add("崔三岁同学");
+        add("酸奶女人a");
+
+        try {
+            InputStream inputStream = getResources().openRawResource(R.raw.comments);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+            String line = null;
+            while ((line = reader.readLine()) != null) {
+                comments.add(line);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
+
+    private void add(String name) {
+        if (!userNames.contains(name)) {
+            userNames.add(name);
+        }
+    }
 
     private class MainGridAdapter extends BaseAdapter {
         private List<String> items = new ArrayList<>();

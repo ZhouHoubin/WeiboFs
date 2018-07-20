@@ -9,6 +9,6 @@ public class App extends Application {
     public void onCreate() {
         super.onCreate();
         Caches.cacheDir = getCacheDir();
-        Caches.get().clear();
+        //Caches.get().clear();
     }
 }
