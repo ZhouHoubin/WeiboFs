@@ -1,6 +1,8 @@
 package z.hobin.weibofs;
 
+import android.app.AlertDialog;
 import android.app.WallpaperManager;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -13,11 +15,11 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
+import android.widget.EditText;
 import android.widget.GridView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -61,18 +63,155 @@ public class MainActivity extends AppCompatActivity {
         getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
         widthPixels = displayMetrics.widthPixels;
 
+        TextView title = findViewById(R.id.action_title);
+        title.setText("小微助手");
+        findViewById(R.id.actionbar_back).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();
+            }
+        });
+
         GridView grid = findViewById(R.id.grid);
         List<String> list = new ArrayList<>();
-        list.add("删除单项");
-        list.add("关注粉丝");
-        list.add("消息");
-        list.add("批量关注并私信");
-        list.add("批量关注点赞评论");
+        list.add("关注");//单人关注,多人关注,删除单项好友(排除特别关注,认证用户),贴吧抓取
+        list.add("粉丝");//移除粉丝//关注粉丝
+        list.add("消息");//批量消息,分组消息
+        list.add("点赞");//首页点赞//自动点赞//
         list.add("重新登录");
+        list.add("帮助");
         grid.setAdapter(new MainGridAdapter(list));
         grid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, final int position, long id) {
+                switch (position) {
+                    case 0://关注
+                        AlertDialog.Builder followBuilder = new AlertDialog.Builder(MainActivity.this);
+                        followBuilder.setTitle("关注");
+                        followBuilder.setSingleChoiceItems(new CharSequence[]{"关注一个人", "关注多个人", "删除没有关注我的人", "删除没有关注我的人(不包括认证用户)", "贴吧帖子提取关注"}, 0, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                                switch (which) {
+                                    case 0:
+                                        AlertDialog.Builder followBuilder = new AlertDialog.Builder(MainActivity.this);
+                                        followBuilder.setTitle("输入用户名");
+                                        final EditText editText = new EditText(getApplicationContext());
+                                        followBuilder.setView(editText);
+                                        followBuilder.setPositiveButton("关注", new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialog, int which) {
+                                                String userName = editText.getText().toString();
+                                                if (TextUtils.isEmpty(userName)) {
+                                                    Toast.makeText(MainActivity.this, "输入对方微博名", Toast.LENGTH_SHORT).show();
+                                                } else {
+
+                                                }
+                                            }
+                                        });
+                                        followBuilder.setNegativeButton("取消", null);
+                                        followBuilder.show();
+                                        break;
+                                    case 1:
+                                        Intent gotoMultiFollow = new Intent(getApplicationContext(), FollowActivity.class);
+                                        startActivity(gotoMultiFollow);
+                                        break;
+                                    case 2:
+                                        AlertDialog.Builder deleteAllBuilder = new AlertDialog.Builder(MainActivity.this);
+                                        deleteAllBuilder.setTitle("删除没有关注我的人");
+                                        deleteAllBuilder.setMessage("操作会删除所有没有关注我的人,保留关注我的人,可能会删除一些明星#官微#认证用户,是否继续?");
+                                        deleteAllBuilder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialog, int which) {
+
+                                            }
+                                        });
+
+                                        deleteAllBuilder.setNegativeButton("取消", null);
+                                        deleteAllBuilder.show();
+                                        break;
+                                    case 3:
+                                        AlertDialog.Builder deleteBuilder = new AlertDialog.Builder(MainActivity.this);
+                                        deleteBuilder.setTitle("删除没有关注我的人(不包括认证用户)");
+                                        deleteBuilder.setMessage("操作会删除所有没有关注我的人,保留关注我的人,不删除明星#官微#认证用户,是否继续?");
+                                        deleteBuilder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialog, int which) {
+
+                                            }
+                                        });
+                                        deleteBuilder.setNegativeButton("取消", null);
+                                        deleteBuilder.show();
+                                        break;
+                                    case 4:
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+                        });
+                        followBuilder.show();
+                        break;
+                    case 1://粉丝
+                        final AlertDialog.Builder fansBuilder = new AlertDialog.Builder(MainActivity.this);
+                        fansBuilder.setTitle("粉丝");
+                        fansBuilder.setSingleChoiceItems(new CharSequence[]{"关注粉丝", "移除粉丝"}, 0, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                                switch (which) {
+                                    case 0:
+                                        AlertDialog.Builder followBuilder = new AlertDialog.Builder(MainActivity.this);
+                                        followBuilder.setTitle("关注粉丝");
+                                        followBuilder.setMessage("此操作会关注所有的粉丝,是否继续?");
+                                        followBuilder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialog, int which) {
+
+                                            }
+                                        });
+                                        followBuilder.setNegativeButton("取消", null);
+                                        followBuilder.show();
+                                        break;
+                                    case 1:
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+                        });
+                        fansBuilder.show();
+                        break;
+                    case 2://消息
+                        final AlertDialog.Builder messageBuilder = new AlertDialog.Builder(MainActivity.this);
+                        messageBuilder.setTitle("消息");
+                        messageBuilder.setSingleChoiceItems(new CharSequence[]{"批量发送消息", "分组发消息"}, 0, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                            }
+                        });
+                        messageBuilder.show();
+                        break;
+                    case 3://点赞
+                        final AlertDialog.Builder likeBuilder = new AlertDialog.Builder(MainActivity.this);
+                        likeBuilder.setTitle("点赞");
+                        likeBuilder.setSingleChoiceItems(new CharSequence[]{"首页点赞", "自动点赞", "粉丝点赞"}, 0, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                            }
+                        });
+                        likeBuilder.show();
+                        break;
+                    case 4://重新登录
+                        break;
+                    case 5://帮助
+                        break;
+                    default:
+                        break;
+                }
+
                 new Thread() {
                     @Override
                     public void run() {
@@ -196,7 +335,7 @@ public class MainActivity extends AppCompatActivity {
                                 break;
                         }
                     }
-                }.start();
+                };//.start();
             }
         });
 

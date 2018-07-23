@@ -1,5 +1,6 @@
 package z.hobin.weibofs.net;
 
+import android.os.AsyncTask;
 import android.util.Base64;
 
 import org.json.JSONArray;
@@ -22,9 +23,14 @@ import z.hobin.weibofs.log.L;
 public class Weibo {
     private OkHttpClient client = new OkHttpClient();
     private Caches caches = Caches.get();
+    private WeiboCallBack weiboCallBack;
 
     public Weibo() {
 
+    }
+
+    public Weibo(WeiboCallBack weiboCallBack) {
+        this.weiboCallBack = weiboCallBack;
     }
 
     /**
@@ -52,6 +58,48 @@ public class Weibo {
     }
 
     /**
+     * 关注
+     *
+     * @param uid 用户id
+     * @return 用户信息
+     */
+    public void followAsync(final String uid) {
+        new AsyncTask<Void, Void, JSONObject>() {
+
+            @Override
+            protected JSONObject doInBackground(Void... voids) {
+                Request.Builder builder = getDefaultHeader();
+                builder.url("https://m.weibo.cn/api/friendships/create");
+                String referer = String.format(Locale.CHINA, "https://m.weibo.cn/u/%s?uid=%s&luicode=10000011&lfid=%s&featurecode=1", uid, uid, getSelfFansContainerId());
+                builder.addHeader("Referer", referer);
+                String data = String.format(Locale.CHINA, "uid=%s&st=%s", uid, getSt());
+                Request request = builder.post(getStringRequestBody(data)).build();
+                try {
+                    Response response = client.newCall(request).execute();
+                    String json = response.body().string();
+                    L.d("Follow", json);
+                    return new JSONObject(json);
+                } catch (Exception e) {
+                    L.e("Follow", e);
+                }
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(JSONObject jsonObject) {
+                super.onPostExecute(jsonObject);
+                if (weiboCallBack != null) {
+                    if (jsonObject != null) {
+                        weiboCallBack.onSuccess(jsonObject);
+                    } else {
+                        weiboCallBack.onFailed(null);
+                    }
+                }
+            }
+        }.execute();
+    }
+
+    /**
      * 取消关注
      *
      * @param uid 用户id
@@ -67,13 +115,13 @@ public class Weibo {
         try {
             Response response = client.newCall(request).execute();
             JSONObject json = new JSONObject(response.body().string());
-            if(json.getInt("ok") == 0){
-                if(json.getString("error_type").equalsIgnoreCase("captcha")){
+            if (json.getInt("ok") == 0) {
+                if (json.getString("error_type").equalsIgnoreCase("captcha")) {
                     //验证码
                 }
             }
-            L.d("UnFollow", json);
-            return new JSONObject(json);
+            L.d("UnFollow", json.toString());
+            return new JSONObject(json.toString());
         } catch (Exception e) {
             L.e("UnFollow", e);
         }
