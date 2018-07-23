@@ -15,13 +15,9 @@ public class LianZhong {
     private OkHttpClient client = new OkHttpClient();
     private final String softwareId = "10489";
     private final String softwareSecret = "775YnZRnPpd1Tg69Fo7mSTW6Q2BecUhCx5LWh0xi";
-    private final String userName = "";
-    private final String password = "";
-    private final String captchaType = "";
-
-    public LianZhong() {
-
-    }
+    private final String userName = "elio1994_dev";
+    private final String password = "www.mm8.com.cn";
+    private final String captchaType = "1001";
 
     public String validate(String data) {
         Request.Builder builder = new Request.Builder();
@@ -50,7 +46,7 @@ public class LianZhong {
             Response response = client.newCall(builder.post(body).build()).execute();
             String responseJson = response.body().string();
             JSONObject respJsonObject = new JSONObject(responseJson);
-            return respJsonObject.getString("recognition");
+            return respJsonObject.getJSONObject("data").getString("recognition");
         } catch (IOException e) {
             e.printStackTrace();
         } catch (JSONException e) {

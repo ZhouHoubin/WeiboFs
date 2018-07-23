@@ -3,7 +3,7 @@ package z.hobin.weibofs.net;
 import org.json.JSONObject;
 
 public interface WeiboCallBack {
-    void onSuccess(JSONObject json);
+    void onSuccess(Object json);
 
-    void onFailed(JSONObject json);
+    void onFailed(Object json);
 }

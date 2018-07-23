@@ -29,10 +29,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import z.hobin.weibofs.data.Caches;
 import z.hobin.weibofs.log.L;
 import z.hobin.weibofs.net.Weibo;
+import z.hobin.weibofs.net.WeiboCallBack;
 import z.hobin.weibofs.util.Utils;
 
 public class MainActivity extends AppCompatActivity {
@@ -105,7 +107,18 @@ public class MainActivity extends AppCompatActivity {
                                                 if (TextUtils.isEmpty(userName)) {
                                                     Toast.makeText(MainActivity.this, "输入对方微博名", Toast.LENGTH_SHORT).show();
                                                 } else {
+                                                    Weibo weibo = new Weibo();
+                                                    weibo.follow(userName, new WeiboCallBack() {
+                                                        @Override
+                                                        public void onSuccess(Object json) {
+                                                            Toast.makeText(MainActivity.this, "关注成功" + json.toString(), Toast.LENGTH_SHORT).show();
+                                                        }
 
+                                                        @Override
+                                                        public void onFailed(Object json) {
+                                                            Toast.makeText(MainActivity.this, "关注失败" + json.toString(), Toast.LENGTH_SHORT).show();
+                                                        }
+                                                    });
                                                 }
                                             }
                                         });
@@ -119,11 +132,28 @@ public class MainActivity extends AppCompatActivity {
                                     case 2:
                                         AlertDialog.Builder deleteAllBuilder = new AlertDialog.Builder(MainActivity.this);
                                         deleteAllBuilder.setTitle("删除没有关注我的人");
-                                        deleteAllBuilder.setMessage("操作会删除所有没有关注我的人,保留关注我的人,可能会删除一些明星#官微#认证用户,是否继续?");
+                                        deleteAllBuilder.setMessage("此操作会删除所有没有关注我的人,保留关注我的人,可能会删除一些明星#官微#认证用户,是否继续?");
                                         deleteAllBuilder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
                                             @Override
                                             public void onClick(DialogInterface dialog, int which) {
+                                                dialog.dismiss();
+                                                Weibo weibo = new Weibo();
+                                                weibo.deleteSingle(new WeiboCallBack() {
+                                                    @Override
+                                                    public void onSuccess(Object json) {
+                                                        if (json instanceof Integer[]) {
+                                                            Integer[] result = (Integer[]) json;
+                                                            String msg = String.format(Locale.CHINA, "单向好友 %d 个,成功取关 %d 个", result[0], result[1]);
+                                                            Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                                                        }
+                                                    }
 
+                                                    @Override
+                                                    public void onFailed(Object json) {
+
+                                                    }
+                                                });
+                                                Toast.makeText(MainActivity.this, "正在删除,删除存在延迟,稍后需重新打开微博", Toast.LENGTH_LONG).show();
                                             }
                                         });
 
@@ -137,7 +167,24 @@ public class MainActivity extends AppCompatActivity {
                                         deleteBuilder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
                                             @Override
                                             public void onClick(DialogInterface dialog, int which) {
+                                                dialog.dismiss();
+                                                Weibo weibo = new Weibo();
+                                                weibo.deleteSingleWithoutVerf(new WeiboCallBack() {
+                                                    @Override
+                                                    public void onSuccess(Object json) {
+                                                        if (json instanceof Integer[]) {
+                                                            Integer[] result = (Integer[]) json;
+                                                            String msg = String.format(Locale.CHINA, "单向好友 %d 个,成功取关 %d 个,认证微博 %d 个", result[0], result[2], result[1]);
+                                                            Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                                                        }
+                                                    }
 
+                                                    @Override
+                                                    public void onFailed(Object json) {
+
+                                                    }
+                                                });
+                                                Toast.makeText(MainActivity.this, "正在删除,删除存在延迟,稍后需重新打开微博", Toast.LENGTH_LONG).show();
                                             }
                                         });
                                         deleteBuilder.setNegativeButton("取消", null);
@@ -167,7 +214,24 @@ public class MainActivity extends AppCompatActivity {
                                         followBuilder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
                                             @Override
                                             public void onClick(DialogInterface dialog, int which) {
+                                                dialog.dismiss();
+                                                Weibo weibo = new Weibo();
+                                                weibo.followFans(new WeiboCallBack() {
+                                                    @Override
+                                                    public void onSuccess(Object json) {
+                                                        if (json instanceof Integer[]) {
+                                                            Integer[] result = (Integer[]) json;
+                                                            String msg = String.format(Locale.CHINA, "粉丝 %d 个,单向粉丝 %d 个,关注成功 %d 个", result[0], result[1], result[2]);
+                                                            Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                                                        }
+                                                    }
 
+                                                    @Override
+                                                    public void onFailed(Object json) {
+
+                                                    }
+                                                });
+                                                Toast.makeText(MainActivity.this, "正在关注粉丝,任务存在延迟,稍后需重新打开微博", Toast.LENGTH_LONG).show();
                                             }
                                         });
                                         followBuilder.setNegativeButton("取消", null);

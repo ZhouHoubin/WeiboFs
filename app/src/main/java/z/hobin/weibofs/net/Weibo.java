@@ -1,6 +1,8 @@
 package z.hobin.weibofs.net;
 
+import android.annotation.SuppressLint;
 import android.os.AsyncTask;
+import android.os.Message;
 import android.util.Base64;
 
 import org.json.JSONArray;
@@ -19,18 +21,15 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import z.hobin.weibofs.data.Caches;
 import z.hobin.weibofs.log.L;
+import z.hobin.weibofs.util.Utils;
 
+@SuppressLint("StaticFieldLeak")
 public class Weibo {
     private OkHttpClient client = new OkHttpClient();
     private Caches caches = Caches.get();
-    private WeiboCallBack weiboCallBack;
 
     public Weibo() {
 
-    }
-
-    public Weibo(WeiboCallBack weiboCallBack) {
-        this.weiboCallBack = weiboCallBack;
     }
 
     /**
@@ -40,6 +39,12 @@ public class Weibo {
      * @return 用户信息
      */
     public JSONObject follow(String uid) {
+        if (!Utils.isInteger(uid)) {
+            uid = getUserIdByName(uid);
+            if (!Utils.isInteger(uid)) {
+                return null;
+            }
+        }
         Request.Builder builder = getDefaultHeader();
         builder.url("https://m.weibo.cn/api/friendships/create");
         String referer = String.format(Locale.CHINA, "https://m.weibo.cn/u/%s?uid=%s&luicode=10000011&lfid=%s&featurecode=1", uid, uid, getSelfFansContainerId());
@@ -58,35 +63,144 @@ public class Weibo {
     }
 
     /**
+     * 批量关注
+     *
+     * @param userNames 用户名
+     * @return 用户信息
+     */
+    public int follow(List<String> userNames) {
+        if (userNames.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (int i = 0; i < userNames.size(); i++) {
+            JSONObject json = follow(userNames.get(i));
+            if (json != null) {
+                try {
+                    if (json.getInt("ok") != 1) {
+                        break;
+                    } else {
+                        count++;
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return count;
+    }
+
+    /**
+     * 批量关注
+     *
+     * @param userNames 用户名
+     */
+    public void follow(final List<String> userNames, final WeiboCallBack weiboCallBack) {
+        if (userNames.isEmpty()) {
+            return;
+        }
+
+        new AsyncTask<Void, Void, Integer>() {
+
+            @Override
+            protected Integer doInBackground(Void... voids) {
+                return follow(userNames);
+            }
+
+            @Override
+            protected void onPostExecute(Integer count) {
+                super.onPostExecute(count);
+                if (weiboCallBack != null) {
+                    weiboCallBack.onSuccess(count);
+                }
+            }
+        }.execute();
+    }
+
+    /**
      * 关注
      *
      * @param uid 用户id
-     * @return 用户信息
      */
-    public void followAsync(final String uid) {
+    public void follow(final String uid, final WeiboCallBack weiboCallBack) {
         new AsyncTask<Void, Void, JSONObject>() {
 
             @Override
             protected JSONObject doInBackground(Void... voids) {
-                Request.Builder builder = getDefaultHeader();
-                builder.url("https://m.weibo.cn/api/friendships/create");
-                String referer = String.format(Locale.CHINA, "https://m.weibo.cn/u/%s?uid=%s&luicode=10000011&lfid=%s&featurecode=1", uid, uid, getSelfFansContainerId());
-                builder.addHeader("Referer", referer);
-                String data = String.format(Locale.CHINA, "uid=%s&st=%s", uid, getSt());
-                Request request = builder.post(getStringRequestBody(data)).build();
-                try {
-                    Response response = client.newCall(request).execute();
-                    String json = response.body().string();
-                    L.d("Follow", json);
-                    return new JSONObject(json);
-                } catch (Exception e) {
-                    L.e("Follow", e);
-                }
-                return null;
+                return follow(uid);
             }
 
             @Override
             protected void onPostExecute(JSONObject jsonObject) {
+                super.onPostExecute(jsonObject);
+                if (weiboCallBack != null) {
+                    if (jsonObject != null) {
+                        try {
+                            if (jsonObject.getInt("ok") != 1) {
+                                weiboCallBack.onFailed(jsonObject);
+                            }
+                        } catch (JSONException e) {
+                            L.e(e);
+                        }
+                        weiboCallBack.onSuccess(jsonObject);
+                    } else {
+                        weiboCallBack.onFailed(null);
+                    }
+                }
+            }
+        }.execute();
+    }
+
+    /**
+     * 删除单向好友
+     *
+     * @return int[单向总数, 删除成功数]
+     */
+    public Integer[] deleteSingle() {
+        List<JSONObject> followeds = getFolloweds();
+        int single = 0;
+        int success = 0;
+        for (JSONObject followed : followeds) {
+            try {
+                String name = followed.getJSONObject("user").getString("screen_name");
+                String uid = followed.getJSONObject("user").getString("id");
+                int ship = followed.getJSONArray("buttons").getJSONObject(0).getInt("relationship");
+                if (ship == 3) {
+                    L.d("互关", name);
+                } else {
+                    single++;
+                    JSONObject unFollow = unFollow(uid);
+                    if (unFollow != null) {
+                        if (unFollow.getInt("ok") != 1) {
+                            L.d("UnFollow", unFollow.getString("msg"));
+                            break;
+                        } else {
+                            success++;
+                        }
+                    }
+                    Utils.sleep(1000 * 3);
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        return new Integer[]{single, success};
+    }
+
+
+    /**
+     * 删除单向用户
+     */
+    public void deleteSingle(final WeiboCallBack weiboCallBack) {
+        new AsyncTask<Void, Void, Integer[]>() {
+
+            @Override
+            protected Integer[] doInBackground(Void... voids) {
+                return deleteSingle();
+            }
+
+            @Override
+            protected void onPostExecute(Integer[] jsonObject) {
                 super.onPostExecute(jsonObject);
                 if (weiboCallBack != null) {
                     if (jsonObject != null) {
@@ -98,6 +212,75 @@ public class Weibo {
             }
         }.execute();
     }
+
+    /**
+     * 删除单向好友,不删除认证
+     *
+     * @return int[单向总数, 删除成功数]
+     */
+    public Integer[] deleteSingleWithoutVerf() {
+        List<JSONObject> followeds = getFolloweds();
+        int single = 0;
+        int success = 0;
+        int verified = 0;
+        for (JSONObject followed : followeds) {
+            try {
+                JSONObject user = followed.getJSONObject("user");
+                String name = user.getString("screen_name");
+                String uid = user.getString("id");
+                int ship = followed.getJSONArray("buttons").getJSONObject(0).getInt("relationship");
+                if (ship == 3) {
+                    L.d("互关", name);
+                } else {
+                    single++;
+                    if (user.getString("verified").equalsIgnoreCase("true")) {
+                        verified++;
+                        continue;
+                    }
+                    JSONObject unFollow = unFollow(uid);
+                    if (unFollow != null) {
+                        if (unFollow.getInt("ok") != 1) {
+                            L.d("UnFollow", unFollow.getString("msg"));
+                            continue;
+                        } else {
+                            success++;
+                        }
+                    }
+                    Utils.sleep(1000 * 3);
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        return new Integer[]{single, verified, success};
+    }
+
+
+    /**
+     * 删除单向好友,不删除认证
+     */
+    public void deleteSingleWithoutVerf(final WeiboCallBack weiboCallBack) {
+        new AsyncTask<Void, Void, Integer[]>() {
+
+            @Override
+            protected Integer[] doInBackground(Void... voids) {
+                return deleteSingleWithoutVerf();
+            }
+
+            @Override
+            protected void onPostExecute(Integer[] jsonObject) {
+                super.onPostExecute(jsonObject);
+                if (weiboCallBack != null) {
+                    if (jsonObject != null) {
+                        weiboCallBack.onSuccess(jsonObject);
+                    } else {
+                        weiboCallBack.onFailed(null);
+                    }
+                }
+            }
+        }.execute();
+    }
+
 
     /**
      * 取消关注
@@ -118,6 +301,10 @@ public class Weibo {
             if (json.getInt("ok") == 0) {
                 if (json.getString("error_type").equalsIgnoreCase("captcha")) {
                     //验证码
+                    String captchaBase64 = getCaptcha();
+                    LianZhong lianZhong = new LianZhong();
+                    String captcha = lianZhong.validate(captchaBase64);
+                    return unFollow(uid, captcha);
                 }
             }
             L.d("UnFollow", json.toString());
@@ -126,6 +313,99 @@ public class Weibo {
             L.e("UnFollow", e);
         }
         return null;
+    }
+
+    /**
+     * 取消关注
+     *
+     * @param uid  用户id
+     * @param code 验证码
+     * @return 用户信息
+     */
+    public JSONObject unFollow(String uid, String code) {
+        Request.Builder builder = getDefaultHeader();
+        builder.url("https://m.weibo.cn/api/friendships/destory");
+        String referer = String.format(Locale.CHINA, "https://m.weibo.cn/u/%s?uid=%s&luicode=10000011&lfid=%s&featurecode=1", uid, uid, getSelfFollowedContainerId());
+        builder.addHeader("Referer", referer);
+        String data = String.format(Locale.CHINA, "uid=%s&st=%s&_code=%s", uid, getSt(), code);
+        Request request = builder.post(getStringRequestBody(data)).build();
+        try {
+            Response response = client.newCall(request).execute();
+            JSONObject json = new JSONObject(response.body().string());
+            if (json.getInt("ok") == 0) {
+                if (json.getString("error_type").equalsIgnoreCase("captcha")) {
+                    //验证码
+                    String captchaBase64 = getCaptcha();
+                    LianZhong lianZhong = new LianZhong();
+                    String captcha = lianZhong.validate(captchaBase64);
+                    return unFollow(uid, captcha);
+                }
+            }
+            L.d("UnFollow", json.toString());
+            return new JSONObject(json.toString());
+        } catch (Exception e) {
+            L.e("UnFollow", e);
+        }
+        return null;
+    }
+
+    /**
+     * 关注粉丝
+     *
+     * @return int[粉丝数, 单向粉丝, 关注成功]
+     */
+    public Integer[] followFans() {
+        List<JSONObject> fans = getFans();
+        int unFollowed = 0;
+        int success = 0;
+        for (JSONObject followed : fans) {
+            try {
+                String name = followed.getJSONObject("user").getString("screen_name");
+                String uid = followed.getJSONObject("user").getString("id");
+                int ship = followed.getJSONArray("buttons").getJSONObject(0).getInt("relationship");
+                if (ship == 3) {
+                    L.d("互关", name);
+                } else if (ship == 1) {
+                    unFollowed++;
+                    JSONObject follow = follow(uid);
+                    if (follow.getInt("ok") != 1) {
+                        L.d("Follow", follow.getString("msg"));
+                    } else {
+                        success++;
+                    }
+                    Utils.sleep(1000 * 3);
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        L.d("粉丝", fans.size() + "");
+        return new Integer[]{fans.size(), unFollowed, success};
+    }
+
+    /**
+     * 关注粉丝
+     */
+    public void followFans(final WeiboCallBack weiboCallBack) {
+        new AsyncTask<Void, Void, Integer[]>() {
+
+            @Override
+            protected Integer[] doInBackground(Void... voids) {
+                return followFans();
+            }
+
+            @Override
+            protected void onPostExecute(Integer[] jsonObject) {
+                super.onPostExecute(jsonObject);
+                if (weiboCallBack != null) {
+                    if (jsonObject != null) {
+                        weiboCallBack.onSuccess(jsonObject);
+                    } else {
+                        weiboCallBack.onFailed(null);
+                    }
+                }
+            }
+        }.execute();
     }
 
     /**

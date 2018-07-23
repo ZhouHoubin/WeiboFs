@@ -22,7 +22,9 @@
 
         <activity android:name=".LoginActivity" />
 
-        <activity android:name=".FollowActivity"/>
+        <activity
+            android:name=".FollowActivity"
+            android:windowSoftInputMode="adjustResize|stateAlwaysHidden" />
 
     </application>
 
