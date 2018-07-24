@@ -63,38 +63,6 @@ public class LoginActivity extends Activity {
                                 Toast.makeText(LoginActivity.this, "请稍候", Toast.LENGTH_SHORT).show();
                                 web.pauseTimers();
                                 web.loadUrl("https://m.weibo.cn/message/");
-
-//                                Request.Builder builder = new Request.Builder();
-//                                builder.addHeader("Host", "m.weibo.cn");
-//                                builder.addHeader("Connection", "keep-alive");
-//                                builder.addHeader("Accept", "application/json, text/plain, */*");
-//                                builder.addHeader("Origin", "https://m.weibo.cn");
-//                                builder.addHeader("X-Requested-With", "XMLHttpRequest");
-//                                builder.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36");
-//                                builder.addHeader("Content-Type", "application/x-www-form-urlencoded");
-//                                builder.addHeader("Accept-Language", "zh-CN,zh;q=0.8,en;q=0.6");
-//                                builder.addHeader("Cookie", caches.getAsString("Cookie"));
-//                                builder.url("https://m.weibo.cn/message/chat?uid=" + caches.getAsString("uid"));
-//                                Request request = builder.get().build();
-//                                try {
-//                                    OkHttpClient client = new OkHttpClient();
-//                                    client.newCall(request).enqueue(new Callback() {
-//                                        @Override
-//                                        public void onFailure(Call call, IOException e) {
-//
-//                                        }
-//
-//                                        @Override
-//                                        public void onResponse(Call call, Response response) throws IOException {
-//                                            String html = response.body().string();
-//                                            Document document = Jsoup.parse(html);
-//                                            Elements scripts = document.select("script");
-//                                            System.out.println();
-//                                        }
-//                                    });
-//                                } catch (Exception e) {
-//                                    L.e(e);
-//                                }
                             }
                         } catch (JSONException e) {
                             e.printStackTrace();

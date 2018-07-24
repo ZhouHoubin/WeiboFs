@@ -35,6 +35,7 @@ import z.hobin.weibofs.data.Caches;
 import z.hobin.weibofs.log.L;
 import z.hobin.weibofs.net.Weibo;
 import z.hobin.weibofs.net.WeiboCallBack;
+import z.hobin.weibofs.net.WeiboResult;
 import z.hobin.weibofs.util.Utils;
 
 public class MainActivity extends AppCompatActivity {
@@ -80,6 +81,7 @@ public class MainActivity extends AppCompatActivity {
         list.add("粉丝");//移除粉丝//关注粉丝
         list.add("消息");//批量消息,分组消息
         list.add("点赞");//首页点赞//自动点赞//
+        list.add("帖子");//帖子拷贝
         list.add("重新登录");
         list.add("帮助");
         grid.setAdapter(new MainGridAdapter(list));
@@ -88,195 +90,31 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> parent, View view, final int position, long id) {
                 switch (position) {
                     case 0://关注
-                        AlertDialog.Builder followBuilder = new AlertDialog.Builder(MainActivity.this);
-                        followBuilder.setTitle("关注");
-                        followBuilder.setSingleChoiceItems(new CharSequence[]{"关注一个人", "关注多个人", "删除没有关注我的人", "删除没有关注我的人(不包括认证用户)", "贴吧帖子提取关注"}, 0, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialog.dismiss();
-                                switch (which) {
-                                    case 0:
-                                        AlertDialog.Builder followBuilder = new AlertDialog.Builder(MainActivity.this);
-                                        followBuilder.setTitle("输入用户名");
-                                        final EditText editText = new EditText(getApplicationContext());
-                                        followBuilder.setView(editText);
-                                        followBuilder.setPositiveButton("关注", new DialogInterface.OnClickListener() {
-                                            @Override
-                                            public void onClick(DialogInterface dialog, int which) {
-                                                String userName = editText.getText().toString();
-                                                if (TextUtils.isEmpty(userName)) {
-                                                    Toast.makeText(MainActivity.this, "输入对方微博名", Toast.LENGTH_SHORT).show();
-                                                } else {
-                                                    Weibo weibo = new Weibo();
-                                                    weibo.follow(userName, new WeiboCallBack() {
-                                                        @Override
-                                                        public void onSuccess(Object json) {
-                                                            Toast.makeText(MainActivity.this, "关注成功" + json.toString(), Toast.LENGTH_SHORT).show();
-                                                        }
-
-                                                        @Override
-                                                        public void onFailed(Object json) {
-                                                            Toast.makeText(MainActivity.this, "关注失败" + json.toString(), Toast.LENGTH_SHORT).show();
-                                                        }
-                                                    });
-                                                }
-                                            }
-                                        });
-                                        followBuilder.setNegativeButton("取消", null);
-                                        followBuilder.show();
-                                        break;
-                                    case 1:
-                                        Intent gotoMultiFollow = new Intent(getApplicationContext(), FollowActivity.class);
-                                        startActivity(gotoMultiFollow);
-                                        break;
-                                    case 2:
-                                        AlertDialog.Builder deleteAllBuilder = new AlertDialog.Builder(MainActivity.this);
-                                        deleteAllBuilder.setTitle("删除没有关注我的人");
-                                        deleteAllBuilder.setMessage("此操作会删除所有没有关注我的人,保留关注我的人,可能会删除一些明星#官微#认证用户,是否继续?");
-                                        deleteAllBuilder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
-                                            @Override
-                                            public void onClick(DialogInterface dialog, int which) {
-                                                dialog.dismiss();
-                                                Weibo weibo = new Weibo();
-                                                weibo.deleteSingle(new WeiboCallBack() {
-                                                    @Override
-                                                    public void onSuccess(Object json) {
-                                                        if (json instanceof Integer[]) {
-                                                            Integer[] result = (Integer[]) json;
-                                                            String msg = String.format(Locale.CHINA, "单向好友 %d 个,成功取关 %d 个", result[0], result[1]);
-                                                            Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
-                                                        }
-                                                    }
-
-                                                    @Override
-                                                    public void onFailed(Object json) {
-
-                                                    }
-                                                });
-                                                Toast.makeText(MainActivity.this, "正在删除,删除存在延迟,稍后需重新打开微博", Toast.LENGTH_LONG).show();
-                                            }
-                                        });
-
-                                        deleteAllBuilder.setNegativeButton("取消", null);
-                                        deleteAllBuilder.show();
-                                        break;
-                                    case 3:
-                                        AlertDialog.Builder deleteBuilder = new AlertDialog.Builder(MainActivity.this);
-                                        deleteBuilder.setTitle("删除没有关注我的人(不包括认证用户)");
-                                        deleteBuilder.setMessage("操作会删除所有没有关注我的人,保留关注我的人,不删除明星#官微#认证用户,是否继续?");
-                                        deleteBuilder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
-                                            @Override
-                                            public void onClick(DialogInterface dialog, int which) {
-                                                dialog.dismiss();
-                                                Weibo weibo = new Weibo();
-                                                weibo.deleteSingleWithoutVerf(new WeiboCallBack() {
-                                                    @Override
-                                                    public void onSuccess(Object json) {
-                                                        if (json instanceof Integer[]) {
-                                                            Integer[] result = (Integer[]) json;
-                                                            String msg = String.format(Locale.CHINA, "单向好友 %d 个,成功取关 %d 个,认证微博 %d 个", result[0], result[2], result[1]);
-                                                            Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
-                                                        }
-                                                    }
-
-                                                    @Override
-                                                    public void onFailed(Object json) {
-
-                                                    }
-                                                });
-                                                Toast.makeText(MainActivity.this, "正在删除,删除存在延迟,稍后需重新打开微博", Toast.LENGTH_LONG).show();
-                                            }
-                                        });
-                                        deleteBuilder.setNegativeButton("取消", null);
-                                        deleteBuilder.show();
-                                        break;
-                                    case 4:
-                                        break;
-                                    default:
-                                        break;
-                                }
-                            }
-                        });
-                        followBuilder.show();
+                        onFollowClick();
                         break;
                     case 1://粉丝
-                        final AlertDialog.Builder fansBuilder = new AlertDialog.Builder(MainActivity.this);
-                        fansBuilder.setTitle("粉丝");
-                        fansBuilder.setSingleChoiceItems(new CharSequence[]{"关注粉丝", "移除粉丝"}, 0, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialog.dismiss();
-                                switch (which) {
-                                    case 0:
-                                        AlertDialog.Builder followBuilder = new AlertDialog.Builder(MainActivity.this);
-                                        followBuilder.setTitle("关注粉丝");
-                                        followBuilder.setMessage("此操作会关注所有的粉丝,是否继续?");
-                                        followBuilder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
-                                            @Override
-                                            public void onClick(DialogInterface dialog, int which) {
-                                                dialog.dismiss();
-                                                Weibo weibo = new Weibo();
-                                                weibo.followFans(new WeiboCallBack() {
-                                                    @Override
-                                                    public void onSuccess(Object json) {
-                                                        if (json instanceof Integer[]) {
-                                                            Integer[] result = (Integer[]) json;
-                                                            String msg = String.format(Locale.CHINA, "粉丝 %d 个,单向粉丝 %d 个,关注成功 %d 个", result[0], result[1], result[2]);
-                                                            Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
-                                                        }
-                                                    }
-
-                                                    @Override
-                                                    public void onFailed(Object json) {
-
-                                                    }
-                                                });
-                                                Toast.makeText(MainActivity.this, "正在关注粉丝,任务存在延迟,稍后需重新打开微博", Toast.LENGTH_LONG).show();
-                                            }
-                                        });
-                                        followBuilder.setNegativeButton("取消", null);
-                                        followBuilder.show();
-                                        break;
-                                    case 1:
-                                        break;
-                                    default:
-                                        break;
-                                }
-                            }
-                        });
-                        fansBuilder.show();
+                        onFansClick();
                         break;
                     case 2://消息
-                        final AlertDialog.Builder messageBuilder = new AlertDialog.Builder(MainActivity.this);
-                        messageBuilder.setTitle("消息");
-                        messageBuilder.setSingleChoiceItems(new CharSequence[]{"批量发送消息", "分组发消息"}, 0, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialog.dismiss();
-                            }
-                        });
-                        messageBuilder.show();
+                        onMessageClick();
                         break;
                     case 3://点赞
-                        final AlertDialog.Builder likeBuilder = new AlertDialog.Builder(MainActivity.this);
-                        likeBuilder.setTitle("点赞");
-                        likeBuilder.setSingleChoiceItems(new CharSequence[]{"首页点赞", "自动点赞", "粉丝点赞"}, 0, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialog.dismiss();
-                            }
-                        });
-                        likeBuilder.show();
+                        onLikeClick();
                         break;
-                    case 4://重新登录
+                    case 4://帖子
+                        onPostClick();
                         break;
-                    case 5://帮助
+                    case 5://重新登录
+                        onLoginClick();
+                        break;
+                    case 6://帮助
+                        onHelpClick();
                         break;
                     default:
                         break;
                 }
 
-                new Thread() {
+                /*new Thread() {
                     @Override
                     public void run() {
                         super.run();
@@ -393,13 +231,13 @@ public class MainActivity extends AppCompatActivity {
                                 break;
                             case 5:
                                 Caches.get().clear();
-                                onResume();
+                                gotoLogin();
                                 break;
                             default:
                                 break;
                         }
                     }
-                };//.start();
+                };//.start();*/
             }
         });
 
@@ -689,6 +527,298 @@ public class MainActivity extends AppCompatActivity {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    //帖子点击
+    private void onPostClick() {
+        final AlertDialog.Builder messageBuilder = new AlertDialog.Builder(MainActivity.this);
+        messageBuilder.setTitle("帖子");
+        messageBuilder.setSingleChoiceItems(new CharSequence[]{"帖子拷贝"}, 0, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+                switch (which) {
+                    case 0:
+                        Intent intent = new Intent(getApplicationContext(),PublishActivity.class);
+                        startActivity(intent);
+                        Weibo weibo = new Weibo();
+                        String msg = "另类姐自己的小铺\n" +
+                                "<span class=\"url-icon\"><img alt=\"[中国赞]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/others/d_chnlike-4743af66c3.png\" style=\"width:1em; height:1em;\"/></span>，卖各种网红产品。\n" +
+                                "<span class=\"url-icon\"><img alt=\"[广告]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/others/f_ad-e7d3d5855c.png\" style=\"width:1em; height:1em;\"/></span>衣服包包 鞋子口红 \n" +
+                                "<span class=\"url-icon\"><img alt=\"[礼物]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/others/o_liwu-6cd67ad993.png\" style=\"width:1em; height:1em;\"/></span>只要能让你们变美变潮，逼格高，的产品、仪器都有\n" +
+                                "<span class=\"url-icon\"><img alt=\"[舔屏]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/default/d_tian-52ea252705.png\" style=\"width:1em; height:1em;\"/></span>\n" +
+                                "<span class=\"url-icon\"><img alt=\"[舔屏]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/default/d_tian-52ea252705.png\" style=\"width:1em; height:1em;\"/></span>。。。粉丝免邮费哦。一般人我不告诉他，想变潮、变漂亮又想省钱的加我哦 ，良心卖家~~~另外想赚零花钱的也可以找我哦\n" +
+                                "<span class=\"url-icon\"><img alt=\"[色]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/default/d_huaxin-2223062425.png\" style=\"width:1em; height:1em;\"/></span>\n" +
+                                "<span class=\"url-icon\"><img alt=\"[色]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/default/d_huaxin-2223062425.png\" style=\"width:1em; height:1em;\"/></span>\n" +
+                                "<span class=\"url-icon\"><img alt=\"[色]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/default/d_huaxin-2223062425.png\" style=\"width:1em; height:1em;\"/></span>加WX： yuki981326440   \n" +
+                                "<span class=\"url-icon\"><img alt=\"[心]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/others/l_xin-8e9a1a0346.png\" style=\"width:1em; height:1em;\"/></span> \u200B";
+                        msg = Utils.trimHtml(msg);
+//                        weibo.publish(msg, "a1eface5ly1frnmd1juznj20kl0oy0um", "1", new WeiboCallBack() {
+//                            @Override
+//                            public void onSuccess(WeiboResult result) {
+//                                Toast.makeText(getApplicationContext(), "发布成功", Toast.LENGTH_SHORT).show();
+//                            }
+//
+//                            @Override
+//                            public void onFailed(WeiboResult result) {
+//                                Toast.makeText(getApplicationContext(), "发布失败", Toast.LENGTH_SHORT).show();
+//                            }
+//                        });
+                        break;
+                    default:
+                        break;
+                }
+            }
+        });
+        messageBuilder.show();
+    }
+
+    //帮助点击
+    private void onHelpClick() {
+
+    }
+
+    //粉丝点击
+    private void onFansClick() {
+        final AlertDialog.Builder fansBuilder = new AlertDialog.Builder(MainActivity.this);
+        fansBuilder.setTitle("粉丝");
+        fansBuilder.setSingleChoiceItems(new CharSequence[]{"关注粉丝", "移除粉丝"}, 0, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+                switch (which) {
+                    case 0:
+                        AlertDialog.Builder followBuilder = new AlertDialog.Builder(MainActivity.this);
+                        followBuilder.setTitle("关注粉丝");
+                        followBuilder.setMessage("此操作会关注所有的粉丝,是否继续?");
+                        followBuilder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                                Weibo weibo = new Weibo();
+                                weibo.followFans(new WeiboCallBack() {
+                                    @Override
+                                    public void onSuccess(WeiboResult result) {
+                                        String msg = String.format(Locale.CHINA, "单向粉丝 %d 个,关注成功 %d 个", result.total, result.progress);
+                                        Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                                    }
+
+                                    @Override
+                                    public void onFailed(WeiboResult result) {
+
+                                    }
+                                });
+                                Toast.makeText(MainActivity.this, "正在关注粉丝,任务存在延迟,稍后需重新打开微博", Toast.LENGTH_LONG).show();
+                            }
+                        });
+                        followBuilder.setNegativeButton("取消", null);
+                        followBuilder.show();
+                        break;
+                    case 1:
+                        break;
+                    default:
+                        break;
+                }
+            }
+        });
+        fansBuilder.show();
+    }
+
+    //关注点击
+    private void onFollowClick() {
+        AlertDialog.Builder followBuilder = new AlertDialog.Builder(MainActivity.this);
+        followBuilder.setTitle("关注");
+        followBuilder.setSingleChoiceItems(new CharSequence[]{"关注一个人", "关注多个人", "删除没有关注我的人", "删除没有关注我的人(不包括认证用户)", "贴吧帖子提取关注"}, 0, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+                switch (which) {
+                    case 0:
+                        AlertDialog.Builder followBuilder = new AlertDialog.Builder(MainActivity.this);
+                        followBuilder.setTitle("输入用户名");
+                        final EditText editText = new EditText(getApplicationContext());
+                        editText.setLines(5);
+                        followBuilder.setView(editText);
+                        followBuilder.setPositiveButton("关注", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                String userName = editText.getText().toString();
+                                if (TextUtils.isEmpty(userName)) {
+                                    Toast.makeText(MainActivity.this, "输入对方微博名", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Weibo weibo = new Weibo();
+                                    weibo.follow(userName, new WeiboCallBack() {
+                                        @Override
+                                        public void onSuccess(WeiboResult result) {
+                                            Toast.makeText(MainActivity.this, "关注成功", Toast.LENGTH_SHORT).show();
+                                        }
+
+                                        @Override
+                                        public void onFailed(WeiboResult result) {
+                                            Toast.makeText(MainActivity.this, "关注失败" + result.msg, Toast.LENGTH_SHORT).show();
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                        followBuilder.setNegativeButton("取消", null);
+                        followBuilder.show();
+                        break;
+                    case 1:
+                        Intent gotoMultiFollow = new Intent(getApplicationContext(), FollowActivity.class);
+                        startActivity(gotoMultiFollow);
+                        break;
+                    case 2:
+                        AlertDialog.Builder deleteAllBuilder = new AlertDialog.Builder(MainActivity.this);
+                        deleteAllBuilder.setTitle("删除没有关注我的人");
+                        deleteAllBuilder.setMessage("此操作会删除所有没有关注我的人,保留关注我的人,可能会删除一些明星#官微#认证用户,是否继续?");
+                        deleteAllBuilder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                                Weibo weibo = new Weibo();
+                                weibo.deleteSingle(new WeiboCallBack() {
+                                    @Override
+                                    public void onSuccess(WeiboResult result) {
+                                        String msg = String.format(Locale.CHINA, "单向好友 %d 个,成功取关 %d 个", result.total, result.progress);
+                                        Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                                    }
+
+                                    @Override
+                                    public void onFailed(WeiboResult json) {
+
+                                    }
+                                });
+                                Toast.makeText(MainActivity.this, "正在删除,删除存在延迟,稍后需重新打开微博", Toast.LENGTH_LONG).show();
+                            }
+                        });
+
+                        deleteAllBuilder.setNegativeButton("取消", null);
+                        deleteAllBuilder.show();
+                        break;
+                    case 3:
+                        AlertDialog.Builder deleteBuilder = new AlertDialog.Builder(MainActivity.this);
+                        deleteBuilder.setTitle("删除没有关注我的人(不包括认证用户)");
+                        deleteBuilder.setMessage("操作会删除所有没有关注我的人,保留关注我的人,不删除明星#官微#认证用户,是否继续?");
+                        deleteBuilder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                                Weibo weibo = new Weibo();
+                                weibo.deleteSingleWithoutVerf(new WeiboCallBack() {
+                                    @Override
+                                    public void onSuccess(WeiboResult result) {
+                                        String msg = String.format(Locale.CHINA, "单向好友 %d 个,成功取关 %d 个", result.total, result.progress);
+                                        Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                                    }
+
+                                    @Override
+                                    public void onFailed(WeiboResult result) {
+
+                                    }
+                                });
+                                Toast.makeText(MainActivity.this, "正在删除,删除存在延迟,稍后需重新打开微博", Toast.LENGTH_LONG).show();
+                            }
+                        });
+                        deleteBuilder.setNegativeButton("取消", null);
+                        deleteBuilder.show();
+                        break;
+                    case 4:
+                        AlertDialog.Builder tiebaBuilder = new AlertDialog.Builder(MainActivity.this);
+                        tiebaBuilder.setTitle("输入贴吧帖子地址");
+                        final EditText tiebaEditText = new EditText(getApplicationContext());
+                        tiebaEditText.setLines(5);
+                        tiebaBuilder.setView(tiebaEditText);
+                        tiebaBuilder.setPositiveButton("关注", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                String tiebaUrl = tiebaEditText.getText().toString();
+                                if (TextUtils.isEmpty(tiebaUrl)) {
+                                    Toast.makeText(MainActivity.this, "请输入贴吧帖子地址", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    tiebaUrl = tiebaUrl.substring(0, tiebaUrl.indexOf("?"));
+                                    Weibo weibo = new Weibo();
+                                    weibo.followByTieba(tiebaUrl, new WeiboCallBack() {
+                                        @Override
+                                        public void onSuccess(WeiboResult result) {
+                                            String msg = String.format(Locale.CHINA, "提取用户名 %d 个,成功关注 %d 个", result.total, result.progress);
+                                            Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                                        }
+
+                                        @Override
+                                        public void onFailed(WeiboResult result) {
+
+                                        }
+                                    });
+                                    Toast.makeText(MainActivity.this, "关注有延迟,稍等进自己微博查看关注", Toast.LENGTH_LONG).show();
+                                }
+                            }
+                        });
+                        tiebaBuilder.setNegativeButton("取消", null);
+                        tiebaBuilder.show();
+                        break;
+                    default:
+                        break;
+                }
+            }
+        });
+        followBuilder.show();
+    }
+
+    //消息点击
+    private void onMessageClick() {
+        final AlertDialog.Builder messageBuilder = new AlertDialog.Builder(MainActivity.this);
+        messageBuilder.setTitle("消息");
+        messageBuilder.setSingleChoiceItems(new CharSequence[]{"批量发送消息", "分组发消息"}, 0, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+        messageBuilder.show();
+    }
+
+    //点赞点击
+    private void onLikeClick() {
+        final AlertDialog.Builder likeBuilder = new AlertDialog.Builder(MainActivity.this);
+        likeBuilder.setTitle("点赞");
+        likeBuilder.setSingleChoiceItems(new CharSequence[]{"首页点赞", "自动点赞", "粉丝点赞"}, 0, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+                switch (which) {
+                    case 0:
+                        Weibo weibo = new Weibo();
+                        weibo.likeMainPage(2, new WeiboCallBack() {
+                            @Override
+                            public void onSuccess(WeiboResult result) {
+                                String msg = String.format(Locale.CHINA, "微博 %d 条,点赞成功 %d 条", result.total, result.progress);
+                                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                            }
+
+                            @Override
+                            public void onFailed(WeiboResult result) {
+                                String msg = String.format(Locale.CHINA, "微博 %d 条,点赞成功 %d 条", result.total, result.progress);
+                                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                                Toast.makeText(MainActivity.this, result.msg, Toast.LENGTH_LONG).show();
+                            }
+                        });
+                        Toast.makeText(MainActivity.this, "正在点赞首页微博,任务存在延迟,稍后需刷新", Toast.LENGTH_LONG).show();
+                        break;
+                    case 1:
+                        break;
+                    default:
+                        break;
+                }
+            }
+        });
+        likeBuilder.show();
+    }
+
+    //重新登录
+    private void onLoginClick() {
+        Caches.get().clear();
+        gotoLogin();
     }
 
 

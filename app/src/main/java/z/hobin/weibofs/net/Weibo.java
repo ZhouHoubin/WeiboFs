@@ -2,17 +2,23 @@ package z.hobin.weibofs.net;
 
 import android.annotation.SuppressLint;
 import android.os.AsyncTask;
-import android.os.Message;
+import android.text.TextUtils;
 import android.util.Base64;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
 
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import okhttp3.FormBody;
 import okhttp3.OkHttpClient;
@@ -30,6 +36,184 @@ public class Weibo {
 
     public Weibo() {
 
+    }
+
+    /**
+     * 获取主页微博
+     *
+     * @param page 页数
+     * @return 用户信息
+     */
+    public List<JSONObject> getMainWeibo(int page) {
+        List<JSONObject> weibos = new ArrayList<>();
+
+        String max_id = "";
+        for (int i = 0; i < page; i++) {
+            String url = "";
+            if (i == 0) {
+                url = "https://m.weibo.cn/feed/friends?";
+            } else {
+                if (TextUtils.isEmpty(max_id)) {
+                    break;
+                }
+                url = String.format(Locale.CHINA, "https://m.weibo.cn/feed/friends?max_id=%s", max_id);
+            }
+            Request.Builder builder = getDefaultHeader();
+            builder.url(url);
+            builder.addHeader("Referer", "https://m.weibo.cn");
+            Request request = builder.get().build();
+            try {
+                Response response = client.newCall(request).execute();
+                JSONObject json = new JSONObject(response.body().string());
+                if (json.getInt("ok") == 1) {
+                    JSONObject data = json.getJSONObject("data");
+                    max_id = String.valueOf(data.getLong("max_id"));
+                    JSONArray statuses = data.getJSONArray("statuses");
+                    for (int j = 0; j < statuses.length(); j++) {
+                        weibos.add(statuses.getJSONObject(j));
+                    }
+                } else {
+                    break;
+                }
+            } catch (Exception e) {
+                L.e("Follow", e);
+            }
+        }
+        L.d("主页", "" + weibos.size());
+        return weibos;
+    }
+
+    /**
+     * 通过帖子提取微博用户名并关注
+     *
+     * @param url 贴吧地址
+     */
+    public WeiboResult followByTieba(String url) {
+        WeiboResult result = new WeiboResult();
+        List<String> userNames = new ArrayList<>();
+        try {
+            for (int i = 1; i < 20; i++) {
+                String u = url + "?pn=" + i;
+                Map<String, String> header = new HashMap<String, String>();
+                header.put("Host", "tieba.baidu.com");
+                header.put("User-Agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36");
+                header.put("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8");
+                header.put("Accept-Language", "zh-HK,zh-CN;q=0.9,zh;q=0.8,ja-JP;q=0.7,ja;q=0.6,zh-TW;q=0.5,en-US;q=0.4,en;q=0.3");
+                header.put("Connection", "keep-alive");
+                header.put("Upgrade-Insecure-Requests", "1");
+                header.put("Cache-Control", "max-age=0");
+                Document document = Jsoup.connect(u).headers(header).get();
+                Elements elements = document.select(".j_d_post_content");
+                for (int j = 0; j < elements.size(); j++) {
+                    String userName = elements.get(j).text();
+                    if (userName.contains("dd")) {
+                        continue;
+                    }
+                    if (userName.contains("粉")) {
+                        continue;
+                    }
+                    if (userName.contains("关注")) {
+                        continue;
+                    }
+                    if (userName.contains("id")) {
+                        continue;
+                    }
+                    if (TextUtils.isEmpty(userName)) {
+                        continue;
+                    }
+                    if (userName.contains(",")) {
+                        continue;
+                    }
+                    if (userName.contains(" ")) {
+                        continue;
+                    }
+                    if (userName.contains("ID")) {
+                        continue;
+                    }
+                    userNames.add(userName);
+                }
+                Elements pagers = document.select(".pb_list_pager");
+                if (pagers.size() == 0 || !pagers.get(0).text().contains("下一页")) {
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        result.data = userNames;
+        result.total = userNames.size();
+        result.progress = follow(userNames);
+        return result;
+    }
+
+    /**
+     * 通过帖子提取微博用户名并关注
+     *
+     * @param url 贴吧地址
+     */
+    public void followByTieba(final String url, final WeiboCallBack weiboCallBack) {
+        new AsyncTask<Void, Void, WeiboResult>() {
+
+            @Override
+            protected WeiboResult doInBackground(Void... voids) {
+                return followByTieba(url);
+            }
+
+            @Override
+            protected void onPostExecute(WeiboResult result) {
+                super.onPostExecute(result);
+                weiboCallBack.onSuccess(result);
+            }
+        }.execute();
+    }
+
+    /**
+     * 主页点赞
+     *
+     * @param page          页数
+     * @param weiboCallBack 回调
+     */
+    public void likeMainPage(final int page, final WeiboCallBack weiboCallBack) {
+        new AsyncTask<Void, Void, WeiboResult>() {
+
+            @Override
+            protected WeiboResult doInBackground(Void... voids) {
+                WeiboResult result = new WeiboResult();
+                List<JSONObject> weibos = getMainWeibo(page);
+                result.total = weibos.size();
+                for (JSONObject weibo : weibos) {
+                    Utils.sleep(1000 * 5);
+                    try {
+                        String userId = String.valueOf(weibo.getJSONObject("user").getLong("id"));
+                        String id = weibo.getString("id");
+                        JSONObject likeJson = like(userId, id);
+                        if (likeJson.getInt("ok") == 1) {
+                            result.progress++;
+                        } else {
+                            result.msg = likeJson.getString("msg");
+                            break;
+                        }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        result.exception = e;
+                        result.msg = e.getMessage();
+                    }
+                }
+                return result;
+            }
+
+            @Override
+            protected void onPostExecute(WeiboResult result) {
+                super.onPostExecute(result);
+                if (weiboCallBack != null) {
+                    if (TextUtils.isEmpty(result.msg)) {
+                        weiboCallBack.onSuccess(result);
+                    } else {
+                        weiboCallBack.onFailed(result);
+                    }
+                }
+            }
+        }.execute();
     }
 
     /**
@@ -53,9 +237,64 @@ public class Weibo {
         Request request = builder.post(getStringRequestBody(data)).build();
         try {
             Response response = client.newCall(request).execute();
-            String json = response.body().string();
-            L.d("Follow", json);
-            return new JSONObject(json);
+            JSONObject json = new JSONObject(response.body().string());
+            if (json.getInt("ok") == 0) {
+                L.e("Follow", json.getString("msg"));
+                if (json.has("error_type") &&
+                        json.getString("error_type").equalsIgnoreCase("captcha")) {
+                    L.d("Follow", "需要验证码");
+                    //验证码
+                    String captchaBase64 = getCaptcha();
+                    LianZhong lianZhong = new LianZhong();
+                    String captcha = lianZhong.validate(captchaBase64);
+                    return follow(uid, captcha);
+                }
+            } else {
+                L.d("Follow", "成功");
+                return json;
+            }
+        } catch (Exception e) {
+            L.e("Follow", e);
+        }
+        return null;
+    }
+
+    /**
+     * 关注
+     *
+     * @param uid     用户id
+     * @param captcha 验证码
+     * @return 用户信息
+     */
+    public JSONObject follow(String uid, String captcha) {
+        if (!Utils.isInteger(uid)) {
+            uid = getUserIdByName(uid);
+            if (!Utils.isInteger(uid)) {
+                return null;
+            }
+        }
+        Request.Builder builder = getDefaultHeader();
+        builder.url("https://m.weibo.cn/api/friendships/create");
+        String referer = String.format(Locale.CHINA, "https://m.weibo.cn/u/%s?uid=%s&luicode=10000011&lfid=%s&featurecode=1", uid, uid, getSelfFansContainerId());
+        builder.addHeader("Referer", referer);
+        String data = String.format(Locale.CHINA, "code=%suid=%s&st=%s", captcha, uid, getSt());
+        Request request = builder.post(getStringRequestBody(data)).build();
+        try {
+            Response response = client.newCall(request).execute();
+            JSONObject json = new JSONObject(response.body().string());
+            if (json.getInt("ok") == 0) {
+                if (json.getString("error_type").equalsIgnoreCase("captcha")) {
+                    L.d("Follow", "验证码2");
+                    //验证码
+                    String captchaBase64 = getCaptcha();
+                    LianZhong lianZhong = new LianZhong();
+                    captcha = lianZhong.validate(captchaBase64);
+                    return follow(uid, captcha);
+                }
+            } else {
+                L.d("Follow", "成功");
+            }
+            return json;
         } catch (Exception e) {
             L.e("Follow", e);
         }
@@ -74,6 +313,7 @@ public class Weibo {
         }
         int count = 0;
         for (int i = 0; i < userNames.size(); i++) {
+            Utils.sleep(1000 * 5);
             JSONObject json = follow(userNames.get(i));
             if (json != null) {
                 try {
@@ -90,6 +330,7 @@ public class Weibo {
         return count;
     }
 
+
     /**
      * 批量关注
      *
@@ -100,18 +341,21 @@ public class Weibo {
             return;
         }
 
-        new AsyncTask<Void, Void, Integer>() {
+        new AsyncTask<Void, Void, WeiboResult>() {
 
             @Override
-            protected Integer doInBackground(Void... voids) {
-                return follow(userNames);
+            protected WeiboResult doInBackground(Void... voids) {
+                WeiboResult result = new WeiboResult();
+                result.total = userNames.size();
+                result.progress = follow(userNames);
+                return result;
             }
 
             @Override
-            protected void onPostExecute(Integer count) {
-                super.onPostExecute(count);
+            protected void onPostExecute(WeiboResult result) {
+                super.onPostExecute(result);
                 if (weiboCallBack != null) {
-                    weiboCallBack.onSuccess(count);
+                    weiboCallBack.onSuccess(result);
                 }
             }
         }.execute();
@@ -123,29 +367,27 @@ public class Weibo {
      * @param uid 用户id
      */
     public void follow(final String uid, final WeiboCallBack weiboCallBack) {
-        new AsyncTask<Void, Void, JSONObject>() {
+        new AsyncTask<Void, Void, WeiboResult>() {
 
             @Override
-            protected JSONObject doInBackground(Void... voids) {
-                return follow(uid);
+            protected WeiboResult doInBackground(Void... voids) {
+                WeiboResult result = new WeiboResult();
+                result.json = follow(uid);
+                return result;
             }
 
             @Override
-            protected void onPostExecute(JSONObject jsonObject) {
-                super.onPostExecute(jsonObject);
+            protected void onPostExecute(WeiboResult result) {
+                super.onPostExecute(result);
                 if (weiboCallBack != null) {
-                    if (jsonObject != null) {
-                        try {
-                            if (jsonObject.getInt("ok") != 1) {
-                                weiboCallBack.onFailed(jsonObject);
-                            }
-                        } catch (JSONException e) {
-                            L.e(e);
+                    try {
+                        if (result.json.getInt("ok") != 1) {
+                            weiboCallBack.onFailed(result);
                         }
-                        weiboCallBack.onSuccess(jsonObject);
-                    } else {
-                        weiboCallBack.onFailed(null);
+                    } catch (JSONException e) {
+                        L.e(e);
                     }
+                    weiboCallBack.onSuccess(result);
                 }
             }
         }.execute();
@@ -192,22 +434,22 @@ public class Weibo {
      * 删除单向用户
      */
     public void deleteSingle(final WeiboCallBack weiboCallBack) {
-        new AsyncTask<Void, Void, Integer[]>() {
+        new AsyncTask<Void, Void, WeiboResult>() {
 
             @Override
-            protected Integer[] doInBackground(Void... voids) {
-                return deleteSingle();
+            protected WeiboResult doInBackground(Void... voids) {
+                WeiboResult result = new WeiboResult();
+                Integer[] res = deleteSingle();
+                result.total = res[0];
+                result.progress = res[1];
+                return result;
             }
 
             @Override
-            protected void onPostExecute(Integer[] jsonObject) {
-                super.onPostExecute(jsonObject);
+            protected void onPostExecute(WeiboResult result) {
+                super.onPostExecute(result);
                 if (weiboCallBack != null) {
-                    if (jsonObject != null) {
-                        weiboCallBack.onSuccess(jsonObject);
-                    } else {
-                        weiboCallBack.onFailed(null);
-                    }
+                    weiboCallBack.onSuccess(result);
                 }
             }
         }.execute();
@@ -252,7 +494,7 @@ public class Weibo {
                 e.printStackTrace();
             }
         }
-        return new Integer[]{single, verified, success};
+        return new Integer[]{single, success, verified};
     }
 
 
@@ -260,22 +502,22 @@ public class Weibo {
      * 删除单向好友,不删除认证
      */
     public void deleteSingleWithoutVerf(final WeiboCallBack weiboCallBack) {
-        new AsyncTask<Void, Void, Integer[]>() {
+        new AsyncTask<Void, Void, WeiboResult>() {
 
             @Override
-            protected Integer[] doInBackground(Void... voids) {
-                return deleteSingleWithoutVerf();
+            protected WeiboResult doInBackground(Void... voids) {
+                WeiboResult result = new WeiboResult();
+                Integer[] res = deleteSingleWithoutVerf();
+                result.total = res[0];
+                result.progress = res[1];
+                return result;
             }
 
             @Override
-            protected void onPostExecute(Integer[] jsonObject) {
-                super.onPostExecute(jsonObject);
+            protected void onPostExecute(WeiboResult result) {
+                super.onPostExecute(result);
                 if (weiboCallBack != null) {
-                    if (jsonObject != null) {
-                        weiboCallBack.onSuccess(jsonObject);
-                    } else {
-                        weiboCallBack.onFailed(null);
-                    }
+                    weiboCallBack.onSuccess(result);
                 }
             }
         }.execute();
@@ -387,22 +629,22 @@ public class Weibo {
      * 关注粉丝
      */
     public void followFans(final WeiboCallBack weiboCallBack) {
-        new AsyncTask<Void, Void, Integer[]>() {
+        new AsyncTask<Void, Void, WeiboResult>() {
 
             @Override
-            protected Integer[] doInBackground(Void... voids) {
-                return followFans();
+            protected WeiboResult doInBackground(Void... voids) {
+                WeiboResult result = new WeiboResult();
+                Integer[] res = followFans();
+                result.total = res[1];
+                result.progress = res[2];
+                return result;
             }
 
             @Override
-            protected void onPostExecute(Integer[] jsonObject) {
-                super.onPostExecute(jsonObject);
+            protected void onPostExecute(WeiboResult result) {
+                super.onPostExecute(result);
                 if (weiboCallBack != null) {
-                    if (jsonObject != null) {
-                        weiboCallBack.onSuccess(jsonObject);
-                    } else {
-                        weiboCallBack.onFailed(null);
-                    }
+                    weiboCallBack.onSuccess(result);
                 }
             }
         }.execute();
@@ -704,6 +946,97 @@ public class Weibo {
             L.e(e);
         }
         return null;
+    }
+
+
+    /**
+     * 获取用户微博
+     *
+     * @param uid 用户id
+     * @return 用户微博
+     */
+    public JSONArray getUserWeibo(String uid) {
+        Request.Builder builder = getDefaultHeader();
+        builder.url("https://m.weibo.cn/profile/info?uid=" + uid);
+        builder.addHeader("Referer", "https://m.weibo.cn/profile/" + uid);
+        builder.addHeader("MWeibo-Pwa", "1");
+        Request request = builder.get().build();
+        try {
+            Response response = client.newCall(request).execute();
+            JSONObject json = new JSONObject(response.body().string());
+            return json.getJSONObject("data").getJSONArray("statuses");
+        } catch (Exception e) {
+            L.e(e);
+        }
+        return null;
+    }
+
+    /**
+     * 发微博
+     *
+     * @param content  内容
+     * @param picId    图片id
+     * @param visibile 1 自己可见
+     */
+    public WeiboResult publish(String content, String picId, String visibile) {
+        WeiboResult result = new WeiboResult();
+        Request.Builder builder = getDefaultHeader();
+        builder.url("https://m.weibo.cn/api/statuses/update");
+        builder.addHeader("Referer", "https://m.weibo.cn");
+        StringBuilder dataBuilder = new StringBuilder();
+        dataBuilder.append("content=");
+        dataBuilder.append(content);
+        dataBuilder.append("&st=");
+        dataBuilder.append(getSt());
+        if (!TextUtils.isEmpty(visibile)) {
+            dataBuilder.append("&visible=");
+            dataBuilder.append(visibile);
+        }
+        if (!TextUtils.isEmpty(picId)) {
+            dataBuilder.append("&picId=");
+            dataBuilder.append(picId);
+        }
+        Request request = builder.post(getStringRequestBody(dataBuilder.toString())).build();
+        try {
+            Response response = client.newCall(request).execute();
+            result.json = new JSONObject(response.body().string());
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    /**
+     * 发微博
+     *
+     * @param content  内容
+     * @param picId    图片id
+     * @param visibile 1 自己可见 6好友可见 ,空全部可见
+     */
+    public void publish(final String content, final String picId, final String visibile, final WeiboCallBack weiboCallBack) {
+        new AsyncTask<Void, Void, WeiboResult>() {
+
+            @Override
+            protected WeiboResult doInBackground(Void... voids) {
+                return publish(content, picId, visibile);
+            }
+
+            @Override
+            protected void onPostExecute(WeiboResult result) {
+                super.onPostExecute(result);
+                try {
+                    if (result.json.getInt("ok") == 1) {
+                        weiboCallBack.onSuccess(result);
+                    } else {
+                        weiboCallBack.onFailed(result);
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        }.execute();
     }
 
     private void sleep(int time) {

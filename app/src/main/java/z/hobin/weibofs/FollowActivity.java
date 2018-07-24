@@ -10,11 +10,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 import z.hobin.weibofs.net.Weibo;
 import z.hobin.weibofs.net.WeiboCallBack;
+import z.hobin.weibofs.net.WeiboResult;
 
 /**
  * 关注
@@ -56,17 +57,14 @@ public class FollowActivity extends AppCompatActivity implements View.OnClickLis
                 Toast.makeText(this, userNames.size() + " ", Toast.LENGTH_SHORT).show();
                 weibo.follow(userNames, new WeiboCallBack() {
                     @Override
-                    public void onSuccess(Object json) {
-                        if (json instanceof Integer) {
-                            Toast.makeText(FollowActivity.this, "关注成功 " + Integer.parseInt(json.toString()), Toast.LENGTH_SHORT).show();
-                        }
+                    public void onSuccess(WeiboResult result) {
+                        String msg = String.format(Locale.CHINA, "用户 %d 个,成功关注 %d 个", result.total, result.progress);
+                        Toast.makeText(FollowActivity.this, msg, Toast.LENGTH_SHORT).show();
                     }
 
                     @Override
-                    public void onFailed(Object json) {
-                        if (json instanceof Integer) {
-                            Toast.makeText(FollowActivity.this, "关注失败 " + Integer.parseInt(json.toString()), Toast.LENGTH_SHORT).show();
-                        }
+                    public void onFailed(WeiboResult result) {
+
                     }
                 });
                 break;
