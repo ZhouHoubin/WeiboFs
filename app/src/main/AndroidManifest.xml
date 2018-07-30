@@ -26,6 +26,9 @@
             android:name=".FollowActivity"
             android:windowSoftInputMode="adjustResize|stateAlwaysHidden" />
         <activity android:name=".PublishActivity" />
+        <activity
+            android:name=".PublishCustomActivity"
+            android:windowSoftInputMode="stateAlwaysHidden" />
     </application>
 
 </manifest>

@@ -20,9 +20,6 @@ import android.widget.GridView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,11 +29,9 @@ import java.util.List;
 import java.util.Locale;
 
 import z.hobin.weibofs.data.Caches;
-import z.hobin.weibofs.log.L;
 import z.hobin.weibofs.net.Weibo;
 import z.hobin.weibofs.net.WeiboCallBack;
 import z.hobin.weibofs.net.WeiboResult;
-import z.hobin.weibofs.util.Utils;
 
 public class MainActivity extends AppCompatActivity {
     private String cookie;
@@ -533,37 +528,18 @@ public class MainActivity extends AppCompatActivity {
     private void onPostClick() {
         final AlertDialog.Builder messageBuilder = new AlertDialog.Builder(MainActivity.this);
         messageBuilder.setTitle("帖子");
-        messageBuilder.setSingleChoiceItems(new CharSequence[]{"帖子拷贝"}, 0, new DialogInterface.OnClickListener() {
+        messageBuilder.setSingleChoiceItems(new CharSequence[]{"帖子拷贝", "自定义发帖"}, 0, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 dialog.dismiss();
                 switch (which) {
-                    case 0:
-                        Intent intent = new Intent(getApplicationContext(),PublishActivity.class);
-                        startActivity(intent);
-                        Weibo weibo = new Weibo();
-                        String msg = "另类姐自己的小铺\n" +
-                                "<span class=\"url-icon\"><img alt=\"[中国赞]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/others/d_chnlike-4743af66c3.png\" style=\"width:1em; height:1em;\"/></span>，卖各种网红产品。\n" +
-                                "<span class=\"url-icon\"><img alt=\"[广告]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/others/f_ad-e7d3d5855c.png\" style=\"width:1em; height:1em;\"/></span>衣服包包 鞋子口红 \n" +
-                                "<span class=\"url-icon\"><img alt=\"[礼物]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/others/o_liwu-6cd67ad993.png\" style=\"width:1em; height:1em;\"/></span>只要能让你们变美变潮，逼格高，的产品、仪器都有\n" +
-                                "<span class=\"url-icon\"><img alt=\"[舔屏]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/default/d_tian-52ea252705.png\" style=\"width:1em; height:1em;\"/></span>\n" +
-                                "<span class=\"url-icon\"><img alt=\"[舔屏]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/default/d_tian-52ea252705.png\" style=\"width:1em; height:1em;\"/></span>。。。粉丝免邮费哦。一般人我不告诉他，想变潮、变漂亮又想省钱的加我哦 ，良心卖家~~~另外想赚零花钱的也可以找我哦\n" +
-                                "<span class=\"url-icon\"><img alt=\"[色]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/default/d_huaxin-2223062425.png\" style=\"width:1em; height:1em;\"/></span>\n" +
-                                "<span class=\"url-icon\"><img alt=\"[色]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/default/d_huaxin-2223062425.png\" style=\"width:1em; height:1em;\"/></span>\n" +
-                                "<span class=\"url-icon\"><img alt=\"[色]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/default/d_huaxin-2223062425.png\" style=\"width:1em; height:1em;\"/></span>加WX： yuki981326440   \n" +
-                                "<span class=\"url-icon\"><img alt=\"[心]\" src=\"//h5.sinaimg.cn/m/emoticon/icon/others/l_xin-8e9a1a0346.png\" style=\"width:1em; height:1em;\"/></span> \u200B";
-                        msg = Utils.trimHtml(msg);
-//                        weibo.publish(msg, "a1eface5ly1frnmd1juznj20kl0oy0um", "1", new WeiboCallBack() {
-//                            @Override
-//                            public void onSuccess(WeiboResult result) {
-//                                Toast.makeText(getApplicationContext(), "发布成功", Toast.LENGTH_SHORT).show();
-//                            }
-//
-//                            @Override
-//                            public void onFailed(WeiboResult result) {
-//                                Toast.makeText(getApplicationContext(), "发布失败", Toast.LENGTH_SHORT).show();
-//                            }
-//                        });
+                    case 0://复制一个帖子
+                        Intent publishIntent = new Intent(getApplicationContext(), PublishActivity.class);
+                        startActivity(publishIntent);
+                        break;
+                    case 1://自定义发帖
+                        Intent publishCustomIntent = new Intent(getApplicationContext(), PublishCustomActivity.class);
+                        startActivity(publishCustomIntent);
                         break;
                     default:
                         break;

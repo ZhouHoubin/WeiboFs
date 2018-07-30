@@ -1094,7 +1094,7 @@ public class Weibo {
         return builder;
     }
 
-    private String getSt() {
+    public String getSt() {
         Request.Builder builder = getDefaultHeader();
         builder.url("https://m.weibo.cn/api/config");
         Request request = builder.get().build();
