@@ -1013,6 +1013,37 @@ public class Weibo {
      *
      * @param content  内容
      * @param picId    图片id
+     * @param visibile 1 自己可见
+     */
+    public WeiboResult publishVideo(String content, String picId, String video_fid, String video_titles, String visibile) {
+        WeiboResult result = new WeiboResult();
+        Request.Builder builder = getDefaultHeader();
+        builder.addHeader("Host", "weibo.com");
+        builder.addHeader("Origin", "https://weibo.com");
+        builder.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36");
+        builder.url("https://weibo.com/aj/mblog/add?ajwvr=6&__rnd=" + System.currentTimeMillis());
+        builder.addHeader("Referer", "http://weibo.com/u/" + getLocalUid() + "/home?wvr=5");
+
+        String data = "location=v6_content_home&text=%s&appkey=&style_type=1&pic_id=%s&tid=&pdetail=&mid=&isReEdit=false&video_fid=%s&video_titles=%s&video_monitor=0&rank=1&rankid=&module=stissue&pub_source=main_&pub_type=dialog&isPri=%s&_t=0";
+        data = String.format(Locale.CHINA, data, content, picId, video_fid, video_titles, visibile);
+
+        Request request = builder.post(getStringRequestBody(data)).build();
+        try {
+            Response response = client.newCall(request).execute();
+            result.json = new JSONObject(response.body().string());
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    /**
+     * 发微博
+     *
+     * @param content  内容
+     * @param picId    图片id
      * @param visibile 1 自己可见 6好友可见 ,空全部可见
      */
     public void publish(final String content, final String picId, final String visibile, final WeiboCallBack weiboCallBack) {

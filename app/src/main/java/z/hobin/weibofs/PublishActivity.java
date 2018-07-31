@@ -117,6 +117,13 @@ public class PublishActivity extends AppCompatActivity implements View.OnClickLi
                         if (!TextUtils.isEmpty(value)) {
                             JSONObject json = new JSONObject(value);
                             JSONObject status = json.getJSONObject("status");
+                            JSONObject pageInnfo = status.getJSONObject("page_info");
+                            String type = "";
+                            if (pageInnfo == null) {
+                                type = "text";
+                            }else{
+                                type = pageInnfo.getString("type");
+                            }
                             String text = status.getString("text");
                             JSONArray idsArray = status.getJSONArray("pic_ids");
                             String ids = "";
@@ -129,6 +136,13 @@ public class PublishActivity extends AppCompatActivity implements View.OnClickLi
                             }
                             text = Utils.trimHtml(text);
                             Weibo weibo = new Weibo();
+                            if (type.equalsIgnoreCase("video")) {
+                                String
+                                weibo.publishVideo(text,ids,"",)
+                            } else if (type.equalsIgnoreCase("text")) {
+
+                            }
+
                             weibo.publish(text, ids, visibile, new WeiboCallBack() {
                                 @Override
                                 public void onSuccess(WeiboResult result) {

@@ -13,44 +13,9 @@
         android:id="@+id/grid"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="#F0F0F0"
         android:listSelector="@android:color/transparent"
         android:numColumns="2"
         android:scrollbars="none"
-        android:background="#F0F0F0"
         android:visibility="visible" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone">
-
-        <include
-            layout="@layout/item_grid"
-            android:layout_width="match_parent"
-            android:layout_height="100dp" />
-
-        <include
-            layout="@layout/item_grid"
-            android:layout_width="match_parent"
-            android:layout_height="100dp" />
-
-        <include
-            layout="@layout/item_grid"
-            android:layout_width="match_parent"
-            android:layout_height="100dp" />
-
-        <include
-            layout="@layout/item_grid"
-            android:layout_width="match_parent"
-            android:layout_height="100dp" />
-
-    </LinearLayout>
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:onClick="follow"
-        android:text="follow" />
-
 </LinearLayout>
